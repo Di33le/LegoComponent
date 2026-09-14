@@ -1,0 +1,243 @@
+:root {
+  --ink: #1a1208;
+  --paper: #f4efe4;
+  --yellow: #f5d000;
+  --yellow-deep: #c9a000;
+  --red: #c91a09;
+  --red-deep: #8a1206;
+  --navy: #141c2b;
+  --panel: #1a2333;
+  --line: #2e3b52;
+  --muted: #9aa6bc;
+  --field: #101722;
+}
+
+.demo {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  color: var(--paper);
+}
+
+.demo__bar {
+  display: flex;
+  align-items: center;
+  padding: 16px 28px;
+  background: var(--yellow);
+  color: var(--ink);
+  box-shadow: inset 0 -4px 0 var(--yellow-deep);
+}
+
+.demo__logo {
+  margin: 0;
+  font-family: Anton, Impact, sans-serif;
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.demo__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  min-height: 0;
+}
+
+.demo__stage {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 14px;
+  padding: 20px 20px 28px;
+  background:
+    radial-gradient(circle at 12px 12px, rgba(255, 255, 255, 0.04) 4px, transparent 5px)
+      0 0 / 28px 28px,
+    var(--navy);
+}
+
+.demo__stage .lego-build {
+  height: min(72vh, 640px);
+  min-height: 320px;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.demo__empty,
+.demo__hint,
+.demo__status {
+  margin: 0;
+  color: var(--muted);
+}
+
+.demo__hint,
+.demo__status {
+  font-size: 0.82rem;
+}
+
+.demo__hint {
+  text-align: center;
+}
+
+.demo__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px 18px 28px;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+}
+
+.demo__field {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.demo__field input {
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  padding: 11px 12px;
+  background: var(--field);
+  color: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.demo__field input:focus {
+  outline: 2px solid var(--yellow);
+  outline-offset: 1px;
+}
+
+.demo__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.demo__presets button {
+  border: 0;
+  border-radius: 6px;
+  padding: 7px 10px;
+  background: var(--field);
+  color: var(--paper);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.demo__presets button.is-on {
+  background: var(--red);
+  box-shadow: none;
+}
+
+.demo__swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.demo__swatches button {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--swatch, var(--red));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.demo__swatches button.is-on {
+  outline: 2px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+.demo__options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+}
+
+.demo__options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--paper);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.demo__options input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--yellow);
+}
+
+.demo__actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.demo__primary,
+.demo__secondary {
+  border: 0;
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.demo__primary {
+  background: var(--red);
+  color: var(--paper);
+  box-shadow: 0 3px 0 var(--red-deep);
+}
+
+.demo__secondary {
+  background: #243247;
+  color: var(--paper);
+  box-shadow: 0 3px 0 #121a28;
+}
+
+.demo__primary:active,
+.demo__secondary:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--red-deep);
+}
+
+.demo__secondary:active {
+  box-shadow: 0 1px 0 #121a28;
+}
+
+.demo__secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@media (max-width: 860px) {
+  .demo__body {
+    grid-template-columns: 1fr;
+  }
+
+  .demo__panel {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .demo__bar {
+    padding: 14px 16px;
+  }
+
+  .demo__stage .lego-build {
+    height: min(56vh, 480px);
+  }
+}
