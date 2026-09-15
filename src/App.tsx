@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { LegoBuild, LEGO_COLORS } from "./components/LegoBuild";
+import { LegoBuild, LEGO_COLORS, saveVideoBlobWithDialog } from "./components/LegoBuild";
 import type { LegoBuildHandle } from "./components/LegoBuild";
 import "./App.css";
 
@@ -24,6 +24,12 @@ type Option = {
   onChange: (next: boolean) => void;
 };
 
+type PendingExport = {
+  blob: Blob;
+  filename: string;
+  mimeType: "video/webm" | "video/mp4";
+};
+
 export default function App() {
   const buildRef = useRef<LegoBuildHandle>(null);
   const [draft, setDraft] = useState("LEGO");
@@ -38,6 +44,8 @@ export default function App() {
   const [transparentBg, setTransparentBg] = useState(false);
   const [status, setStatus] = useState("Ready");
   const [recording, setRecording] = useState(false);
+  const [pendingExport, setPendingExport] = useState<PendingExport | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const id = window.setTimeout(() => {
@@ -68,17 +76,53 @@ export default function App() {
     },
   ];
 
-  async function exportMp4() {
+  async function renderExport() {
     try {
+      setPendingExport(null);
       setRecording(true);
-      setStatus("Recording…");
-      await buildRef.current?.downloadMp4();
-      setStatus(`Saved “${text}”`);
+      setStatus(transparentBg ? "Rendering WebM…" : "Rendering MP4…");
+      const safeName = `lego-build-${(text || "build").replace(/[^\w\-]+/g, "_").slice(0, 24)}`;
+      const blob = await buildRef.current?.downloadMp4(safeName);
+      if (!blob) throw new Error("Export produced no data.");
+      setPendingExport({
+        blob,
+        filename: safeName,
+        mimeType: transparentBg ? "video/webm" : "video/mp4",
+      });
+      setStatus("Rendered — click Save to choose a folder");
     } catch (err) {
       console.error(err);
       setStatus(err instanceof Error ? err.message : "Export failed");
     } finally {
       setRecording(false);
+    }
+  }
+
+  async function saveExport() {
+    if (!pendingExport) return;
+    try {
+      setSaving(true);
+      setStatus("Choose where to save…");
+      const mode = await saveVideoBlobWithDialog(
+        pendingExport.blob,
+        pendingExport.filename,
+        pendingExport.mimeType,
+      );
+      setPendingExport(null);
+      setStatus(
+        mode === "file-picker"
+          ? `Saved “${text}”`
+          : `Downloaded “${text}” (browser blocked folder write)`,
+      );
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setStatus("Cancelled — click Save to try again");
+        return;
+      }
+      console.error(err);
+      setStatus(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -185,20 +229,40 @@ export default function App() {
               type="button"
               className="demo__primary"
               onClick={() => {
+                setPendingExport(null);
                 setStatus(`Building “${text}”`);
                 buildRef.current?.rebuild();
               }}
             >
               Rebuild
             </button>
-            <button
-              type="button"
-              className="demo__secondary"
-              disabled={!text || recording}
-              onClick={() => void exportMp4()}
-            >
-              {recording ? "Recording…" : "Download MP4"}
-            </button>
+            {pendingExport ? (
+              <button
+                type="button"
+                className="demo__secondary"
+                disabled={saving}
+                onClick={() => void saveExport()}
+              >
+                {saving
+                  ? "Saving…"
+                  : transparentBg
+                    ? "Save WebM…"
+                    : "Save MP4…"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="demo__secondary"
+                disabled={!text || recording}
+                onClick={() => void renderExport()}
+              >
+                {recording
+                  ? "Rendering…"
+                  : transparentBg
+                    ? "Download WebM"
+                    : "Download MP4"}
+              </button>
+            )}
           </div>
 
           <p className="demo__status">{status}</p>

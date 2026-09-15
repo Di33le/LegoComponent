@@ -1,6 +1,7 @@
 export type LegoBuildHandle = {
   rebuild: () => void;
-  downloadMp4: (filename?: string) => Promise<void>;
+  /** Renders the export offline and returns the blob (does not open a save dialog). */
+  downloadMp4: (filename?: string) => Promise<Blob>;
 };
 
 export type LegoColorMode = "classic" | "rainbow" | string;

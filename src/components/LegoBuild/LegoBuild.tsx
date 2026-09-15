@@ -7,6 +7,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type MutableRefObject,
 } from "react";
 import { Canvas, useLoader, useThree } from "@react-three/fiber";
 import { Html, useProgress } from "@react-three/drei";
@@ -23,6 +24,11 @@ import "./LegoBuild.css";
 useLoader.preload(STLLoader, PART_URL_LIST);
 
 const DEFAULT_BACKGROUND = "#141c2b";
+
+type RenderApi = {
+  advance: () => void;
+  setFrameloop: (mode: "always" | "never" | "demand") => void;
+};
 
 function LoaderOverlay() {
   const { active, progress } = useProgress();
@@ -44,11 +50,29 @@ function SceneBackground({ background }: { background: string }) {
     if (background === "transparent") {
       scene.background = null;
       gl.setClearColor(0x000000, 0);
+      gl.setClearAlpha(0);
       return;
     }
     scene.background = new Color(background);
     gl.setClearColor(background, 1);
+    gl.setClearAlpha(1);
   }, [background, gl, scene]);
+
+  return null;
+}
+
+function RenderBridge({ apiRef }: { apiRef: MutableRefObject<RenderApi | null> }) {
+  const advance = useThree((s) => s.advance);
+  const set = useThree((s) => s.set);
+
+  useLayoutEffect(() => {
+    apiRef.current = {
+      advance: () => {
+        advance(performance.now());
+      },
+      setFrameloop: (mode) => set({ frameloop: mode }),
+    };
+  }, [advance, set, apiRef]);
 
   return null;
 }
@@ -76,12 +100,15 @@ export const LegoBuild = forwardRef<LegoBuildHandle, LegoBuildProps>(
     const [isRecording, setIsRecording] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const renderApiRef = useRef<RenderApi | null>(null);
     const startedAt = useRef(0);
     const running = useRef(false);
     const epochRef = useRef(0);
     const armedEpoch = useRef(-1);
     const finishedEpoch = useRef(-1);
     const recordingRef = useRef(false);
+    const exportModeRef = useRef(false);
+    const exportTimeRef = useRef(0);
     const recordReadyWaiter = useRef<(() => void) | null>(null);
     const completeRef = useRef(onBuildComplete);
     completeRef.current = onBuildComplete;
@@ -91,6 +118,7 @@ export const LegoBuild = forwardRef<LegoBuildHandle, LegoBuildProps>(
     });
 
     clockRef.current.now = () => {
+      if (exportModeRef.current) return exportTimeRef.current;
       if (!running.current) return 0;
       const audio = audioRef.current;
       if (playSound && audio) {
@@ -113,6 +141,15 @@ export const LegoBuild = forwardRef<LegoBuildHandle, LegoBuildProps>(
       finishedEpoch.current = -1;
       running.current = true;
       startedAt.current = performance.now();
+
+      // Offline export drives time itself — arm the scene but don't play audio.
+      if (recordingRef.current) {
+        exportModeRef.current = true;
+        exportTimeRef.current = 0;
+        recordReadyWaiter.current?.();
+        recordReadyWaiter.current = null;
+        return;
+      }
 
       const audio = audioRef.current;
       if (!audio) {
@@ -145,6 +182,8 @@ export const LegoBuild = forwardRef<LegoBuildHandle, LegoBuildProps>(
       epochRef.current += 1;
       armedEpoch.current = -1;
       running.current = false;
+      exportModeRef.current = false;
+      exportTimeRef.current = 0;
       setBuildId((value) => value + 1);
     }, []);
 
@@ -166,21 +205,37 @@ export const LegoBuild = forwardRef<LegoBuildHandle, LegoBuildProps>(
           });
           rebuild();
           await ready;
+          // Let geometries / first layout settle.
+          await new Promise((r) => requestAnimationFrame(() => r(undefined)));
           await new Promise((r) => requestAnimationFrame(() => r(undefined)));
 
+          const api = renderApiRef.current;
+          if (!api) throw new Error("Renderer is not ready yet.");
+
+          api.setFrameloop("never");
+          exportModeRef.current = true;
+
+          const transparent = background === "transparent";
           const safeName =
             filename ??
-            `lego-build-${(text || "build").replace(/[^\w\-]+/g, "_").slice(0, 24)}.mp4`;
+            `lego-build-${(text || "build").replace(/[^\w\-]+/g, "_").slice(0, 24)}`;
 
-          await recordCanvasToMp4({
+          return await recordCanvasToMp4({
             canvas,
             soundUrl: playSound ? soundSrc : undefined,
             durationSec: AUDIO_DURATION + 0.35,
             filename: safeName,
-            fillStyle:
-              background === "transparent" ? DEFAULT_BACKGROUND : background,
+            transparent,
+            fillStyle: transparent ? DEFAULT_BACKGROUND : background,
+            autoDownload: false,
+            renderFrame: (timeSec) => {
+              exportTimeRef.current = timeSec;
+              api.advance();
+            },
           });
         } finally {
+          exportModeRef.current = false;
+          renderApiRef.current?.setFrameloop("always");
           recordingRef.current = false;
           recordReadyWaiter.current = null;
           setIsRecording(false);
@@ -233,10 +288,12 @@ export const LegoBuild = forwardRef<LegoBuildHandle, LegoBuildProps>(
         <Canvas
           shadows={!flat}
           dpr={[1, 2]}
+          frameloop="always"
           gl={{
             antialias: true,
             preserveDrawingBuffer: true,
             alpha: true,
+            premultipliedAlpha: true,
           }}
           onCreated={({ gl }) => {
             gl.toneMapping = ACESFilmicToneMapping;
@@ -247,6 +304,7 @@ export const LegoBuild = forwardRef<LegoBuildHandle, LegoBuildProps>(
             if (!recordingRef.current) rebuild();
           }}
         >
+          <RenderBridge apiRef={renderApiRef} />
           <SceneBackground background={background} />
           <LoaderOverlay />
           <Suspense fallback={null}>

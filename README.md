@@ -85,3 +85,9 @@ import { LegoBuild } from "./components/LegoBuild";
 | `onBuildComplete` | — | Fires when the last brick lands |
 
 Ref methods: `rebuild()`, `downloadMp4(filename?)`.
+
+`downloadMp4` **renders** the animation offline (seeks the clock per frame, then encodes). It is not a realtime screen capture, so the file stays smooth.
+
+With `background="transparent"`, download exports a **WebM with a real alpha track** (VP9 color + VP9 alpha via Mediabunny), plus a checkerboard preview PNG. Solid backgrounds export **H.264 MP4**.
+
+Open the WebM in **Chrome/Edge** (or `tmp/exports/preview.html` after a local export). Many desktop players ignore WebM alpha and show black even when the file is transparent. The dark plate under the bricks is the optional baseplate mesh, not the backdrop.
